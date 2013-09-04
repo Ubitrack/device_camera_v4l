@@ -1,7 +1,52 @@
+/*
+ * Ubitrack - Library for Ubiquitous Tracking
+ * Copyright 2006, Technische Universitaet Muenchen, and individual
+ * contributors as indicated by the @authors tag. See the
+ * copyright.txt in the distribution for a full listing of individual
+ * contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
+
+/**
+ * @ingroup vision_components
+ * @file
+ * Various Functions for color space conversions.
+ *
+ *
+ * @author Christian Waechter <christian.waechter@in.tum.de>
+ */
+
+
+#ifndef __COLOR_SPACE_CONVERSION_H_INCLUDED__
+#define __COLOR_SPACE_CONVERSION_H_INCLUDED__
+
+#include <cstring> // memcpy
+
+
+
+
 /* Read this webside, helps to understand some of the image coversion stuff.
 http://www.fourcc.org/fccyvrgb.php
 For infos to the following code see opencv cap_v4l-cpp
 */
+
+
+
+
 
 /* calmp: convert a 16.16 fixed-point value to a byte, with clipping. */
 template< typename T >
@@ -9,6 +54,10 @@ inline uint8_t clamp( const T value )
 {
 	return ( ( value )>0xffffff? 0xff : ( ( value )<=0xffff ?0:(( value )>>16)));
 };
+
+
+
+
 
 static inline void move_420_block( int yTL, int yTR, int yBL, int yBR, const int u, const int v, const int rowPixels, uint8_t* rgb )
 {
@@ -47,7 +96,23 @@ static inline void move_420_block( int yTL, int yTR, int yBL, int yBR, const int
     rgb[5] = clamp(r+yBR);
 }
 
-static void yuv420p_to_rgb24( const std::size_t width, const std::size_t height, const uint8_t* pIn0, uint8_t* pOut0 )
+
+template< uint32_t FROM, uint32_t TO > //= V4L2_PIX_FMT_BGR24 >
+static void convert( const std::size_t width, const std::size_t height, const uint8_t* pIn0, uint8_t* pOut0 )
+{
+/* empty prototype, should be implemented for the different color conversion functions*/
+};
+
+
+template< >
+void convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( const std::size_t width, const std::size_t height, const uint8_t* pSource, uint8_t* pDest )
+{
+	const std::size_t size = width * height * 3;
+	std::memcpy ( pDest, pSource, size );
+}
+	
+template< >
+void convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( const std::size_t width, const std::size_t height, const uint8_t* pIn0, uint8_t* pOut0 )
 {
 	const std::size_t numpix = width * height;
 	const int bytes = 24 >> 3;
@@ -84,7 +149,7 @@ inline int clip(int value) {
     return (value > 255) ? 255 : (value < 0) ? 0 : value;
 }
 
-/** the following code is take from:
+/** the following code is take from could be an alternative to above one:
 // http://stackoverflow.com/questions/8836872/mjpeg-to-raw-rgb24-with-video4linux
 */
 
@@ -184,3 +249,5 @@ static void yuv420_to_rgb24(
         y2 += width;
     }
 }
+
+#endif // __COLOR_SPACE_CONVERSION_H_INCLUDED__

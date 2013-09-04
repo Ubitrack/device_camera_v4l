@@ -123,32 +123,33 @@ enum io_method
 };
 
 
+//right now only two color space formats are supported :(
 static const uint32_t pix_formats [] = {
 	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_YVU420,
-	V4L2_PIX_FMT_YUV420,
-	V4L2_PIX_FMT_YUV411P, 
+	V4L2_PIX_FMT_YUV420/*,	// 'YU12', e.g. Quickcam 4000
+	V4L2_PIX_FMT_YVU420,	// 'YV12'
 	V4L2_PIX_FMT_YUYV,
+	V4L2_PIX_FMT_YUV411P, 
+
 	V4L2_PIX_FMT_UYVY,
 	V4L2_PIX_FMT_MJPEG,
 	V4L2_PIX_FMT_JPEG,
 	V4L2_PIX_FMT_SN9C10X,
-	V4L2_PIX_FMT_SBGGR8
-	//V4L2_PIX_FMT_SGBRG
+	V4L2_PIX_FMT_SBGGR8,
+	V4L2_PIX_FMT_SGBRG */
 };
 
-
+/** Function to transform pixel format value into four character string */
 static inline std::string fourcc( const uint32_t pixform )
 {
 	const char cc[] = { pixform & 0xFF, (pixform >> 8) & 0xFF, (pixform >> 16) & 0xFF, (pixform >> 24) & 0xFF, '\0' };
 	return std::string( cc );
 };
 
-
+/** Function to transform version number into 5 character string */
 static inline std::string version( const uint32_t value )
 {
-	//const char verchar[] = { (value >> 16) & 0xFF, '.',  (value >> 8) & 0xFF, '.', value & 0xFF, '\0' };
-	const char verchar[] = { (value >> 16) & 0xFF,  (value >> 8) & 0xFF, value & 0xFF, '\0' };
+	const char verchar[] = { 48 + ((value >> 16) & 0xFF), '.',  48 + ((value >> 8) & 0xFF), '.', (value & 0xFF), '\0' };
 	return std::string( verchar );
 };
 
@@ -175,6 +176,9 @@ protected:
 	
 	/** identifier - file descriptor */
 	const int m_fd;
+
+	/** signs the capture device's pixelformat, e.g. RBG24 */
+	uint32_t m_pixelFormat;
 
 	/** several image buffers */
 	struct buffer *m_buffers;
@@ -310,6 +314,12 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 			initMemory( m_fd, size );
 		}
 	}
+
+
+	std::cout << V4L2_PIX_FMT_YVU420 << " vs. " << V4L2_PIX_FMT_YUV420 << std::endl;
+	std::cout << fourcc (V4L2_PIX_FMT_YVU420 ).c_str() << " vs. " << fourcc( V4L2_PIX_FMT_YUV420 ).c_str() << std::endl;
+
+	
 }
 
 template< io_method MEM_TYPE >
@@ -491,9 +501,16 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 					break;
 			}
 	}
+	struct v4l2_format fmt;
+	CLEAR( fmt );
+	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
+		UBITRACK_THROW("VIDIOC_G_FMT");
+	LOG4CPP_DEBUG( logger, "Device default pixelformat "  << fourcc( fmt.fmt.pix.pixelformat ) << "." );
+	LOG4CPP_DEBUG( logger, "Device default resolution  " << fmt.fmt.pix.width << "x" << fmt.fmt.pix.height << " pixels." );
 
 	{
-
+		LOG4CPP_DEBUG( logger, "Discovering supported video formats:" )
 		struct v4l2_fmtdesc vid_fmtdesc;    /* Enumerated video formats supported by the device \*/
 		CLEAR( vid_fmtdesc );
 
@@ -502,36 +519,23 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 	
      		char flags[][13] = {"uncompressed", "compressed"};  
 		//fprintf(stdout, "\nDiscovering supported video formats:\n");
-		LOG4CPP_DEBUG( logger, "Discovering supported video formats:" )
+		
 
 		 /* Send the VIDIOC_ENUM_FM ioctl and print the results */
 		 while( ioctl( fd, VIDIOC_ENUM_FMT, &vid_fmtdesc ) == 0 )
 		 {
 
 			LOG4CPP_DEBUG( logger, "Format " << vid_fmtdesc.index << ": " << vid_fmtdesc.description << " (" << flags[vid_fmtdesc.flags] << ").")
-		     /* We got a video format/codec back */
-		     //fprintf(stdout, "  index        :%d\n", vid_fmtdesc.index);
-		     //fprintf(stdout, "  flags        :%s\n", flags[vid_fmtdesc.flags]);
-		     //fprintf(stdout, "  description  :%s\n", vid_fmtdesc.description);
-
-		     /* Convert the pixelformat attributes from FourCC into 'human readable' format */
-		     //fprintf(stdout, "  pixelformat  :%c%c%c%c\n",vid_fmtdesc.pixelformat & 0xFF, (vid_fmtdesc.pixelformat >> 8) & 0xFF, (vid_fmtdesc.pixelformat >> 16) & 0xFF, (vid_fmtdesc.pixelformat >> 24) & 0xFF);           
-
-		     /* Increment the index */
-		     vid_fmtdesc.index++;
-
+			if( vid_fmtdesc.flags == 0 )
+				fmt.fmt.pix.pixelformat = vid_fmtdesc.pixelformat;
+				
+		    	vid_fmtdesc.index++;/* Increment the index */
 		 }
-	}/* End of get_supported_video_formats() */  
+	}/* End of get_supported_video_formats() */
 
 
-	struct v4l2_format fmt;
-	CLEAR( fmt );
-
-	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
-		UBITRACK_THROW("VIDIOC_G_FMT");
-	LOG4CPP_DEBUG( logger, "Device default pixelformat "  << fourcc( fmt.fmt.pix.pixelformat ) << "." );
-
+	
+	LOG4CPP_DEBUG( logger, "Attempt to set device capture properties." )
 	fmt.fmt.pix.width       = width;
 	fmt.fmt.pix.height      = height;
 	fmt.fmt.pix.field       = V4L2_FIELD_ANY;
@@ -539,7 +543,7 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 		LOG4CPP_DEBUG( logger, "Device capture properties set succesfully." )
 	else
 	{
-		for( std::size_t i( 0 ); i < 9; ++i )
+		for( std::size_t i( 0 ); i < 2; ++i )
 		{
 
 			CLEAR( fmt );
@@ -568,6 +572,7 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 	/* Note VIDIOC_S_FMT may change width and height. */
 	m_width = fmt.fmt.pix.width;
 	m_height = fmt.fmt.pix.height;
+	m_pixelFormat = fmt.fmt.pix.pixelformat;
 	LOG4CPP_INFO( logger, "Device resolution  set to " << fmt.fmt.pix.width << "x" << fmt.fmt.pix.height << " pixels." );
 	LOG4CPP_INFO( logger, "Device pixelformat set to "  << fourcc( fmt.fmt.pix.pixelformat ) << " color format." );
 	
@@ -972,8 +977,20 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 	boost::shared_ptr< Vision::Image > pImage ( new Vision::Image( m_width, m_height, 3, IPL_DEPTH_8U, IPL_ORIGIN_TL ) );
 
 	/// @todo change image copying/converiosn depending on pixel format
-	//memcpy ( pImage->imageData, ptdImage, lengthImage );
-	yuv420p_to_rgb24( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+
+
+	switch( m_pixelFormat ) 
+	{
+		case V4L2_PIX_FMT_BGR24:
+			convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			break;
+		case V4L2_PIX_FMT_YUV420 :
+			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			break;
+		default:
+			break;
+			/* todo: implement other image converison functions*/
+	}
 
 	/// @todo change image sending
 	m_outPort.send( Measurement::ImageMeasurement( t, pImage ) );

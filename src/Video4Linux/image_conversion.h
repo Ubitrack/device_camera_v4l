@@ -145,6 +145,57 @@ void convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( const std::size_t width
 	}
 }
 
+
+#define SAT(c) \
+        if (c & (~255)) { if (c < 0) c = 0; else c = 255; }
+
+
+//YUYV 
+template< >
+void convert< V4L2_PIX_FMT_YUYV, V4L2_PIX_FMT_BGR24 >( const std::size_t width, const std::size_t height, const uint8_t* src, uint8_t* dst )
+{
+	const uint8_t *s = src;
+   uint8_t *d = dst;
+   int l, c;
+   int r, g, b, cr, cg, cb, y1, y2;
+
+   l = height;
+
+   while (l--) {
+      c = width >> 1;
+      while (c--) {
+         y1 = *s++;
+         cb = ((*s - 128) * 454) >> 8;
+         cg = (*s++ - 128) * 88;
+         y2 = *s++;
+         cr = ((*s - 128) * 359) >> 8;
+         cg = (cg + (*s++ - 128) * 183) >> 8;
+
+         r = y1 + cr;
+         b = y1 + cb;
+         g = y1 - cg;
+         SAT(r);
+         SAT(g);
+         SAT(b);
+
+     *d++ = b;
+     *d++ = g;
+     *d++ = r;
+
+         r = y2 + cr;
+         b = y2 + cb;
+         g = y2 - cg;
+         SAT(r);
+         SAT(g);
+         SAT(b);
+
+     *d++ = b;
+     *d++ = g;
+     *d++ = r;
+      }
+   }
+};
+
 inline int clip(int value) {
     return (value > 255) ? 255 : (value < 0) ? 0 : value;
 }

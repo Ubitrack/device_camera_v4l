@@ -126,9 +126,11 @@ enum io_method
 //right now only two color space formats are supported :(
 static const uint32_t pix_formats [] = {
 	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_YUV420/*,	// 'YU12', e.g. Quickcam 4000
+	V4L2_PIX_FMT_YUV420,	// 'YU12', e.g. Quickcam 4000
+	V4L2_PIX_FMT_YUYV /*, // 'YUV422', e.g. Quickcam 5500
 	V4L2_PIX_FMT_YVU420,	// 'YV12'
-	V4L2_PIX_FMT_YUYV,
+
+
 	V4L2_PIX_FMT_YUV411P, 
 
 	V4L2_PIX_FMT_UYVY,
@@ -543,7 +545,7 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 		LOG4CPP_DEBUG( logger, "Device capture properties set succesfully." )
 	else
 	{
-		for( std::size_t i( 0 ); i < 2; ++i )
+		for( std::size_t i( 0 ); i < 3; ++i )
 		{
 
 			CLEAR( fmt );
@@ -986,6 +988,9 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 			break;
 		case V4L2_PIX_FMT_YUV420 :
 			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			break;
+		case V4L2_PIX_FMT_YUYV :
+			convert< V4L2_PIX_FMT_YUYV , V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
 			break;
 		default:
 			break;

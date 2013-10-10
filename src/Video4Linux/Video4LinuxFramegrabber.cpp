@@ -316,12 +316,6 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 			initMemory( m_fd, size );
 		}
 	}
-
-
-	std::cout << V4L2_PIX_FMT_YVU420 << " vs. " << V4L2_PIX_FMT_YUV420 << std::endl;
-	std::cout << fourcc (V4L2_PIX_FMT_YVU420 ).c_str() << " vs. " << fourcc( V4L2_PIX_FMT_YUV420 ).c_str() << std::endl;
-
-	
 }
 
 template< io_method MEM_TYPE >
@@ -582,11 +576,18 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 	struct v4l2_streamparm setfps;
 	CLEAR( setfps );
 	setfps.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	setfps.parm.capture.timeperframe.numerator = 0;
-	setfps.parm.capture.timeperframe.denominator = 0;
+	setfps.parm.capture.timeperframe.numerator = 1;
+	setfps.parm.capture.timeperframe.denominator = 30;
 	if( -1 == xioctl ( fd , VIDIOC_S_PARM, &setfps) )
-		LOG4CPP_ERROR( logger, "Could not set the device default framerate , error: \"" << strerror( errno ) << "\"." )
+	{
+		LOG4CPP_ERROR( logger, "Could not set the framerate to " << setfps.parm.capture.timeperframe.numerator << "/" << setfps.parm.capture.timeperframe.denominator << ", error: \"" << strerror( errno ) << "\"." )
 
+
+		setfps.parm.capture.timeperframe.numerator = 0;
+		setfps.parm.capture.timeperframe.denominator = 0;
+		xioctl ( fd , VIDIOC_S_PARM, &setfps);
+		LOG4CPP_INFO( logger, "Setting device framerate to default " << setfps.parm.capture.timeperframe.numerator << "/" << setfps.parm.capture.timeperframe.denominator << "." )
+	}
 	else
 		LOG4CPP_INFO( logger, "Device framerate is " << setfps.parm.capture.timeperframe.numerator << "/" << setfps.parm.capture.timeperframe.denominator << "." )
 
@@ -1034,7 +1035,9 @@ UBITRACK_REGISTER_COMPONENT( Dataflow::ComponentFactory* const cf )
 {
 	cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_MMAP > > ( "Video4LinuxFramegrabber" );
 	cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_MMAP > > ( "DefaultFramegrabber" );
+	//cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_READ > > ( "Video4LinuxFramegrabber" );
 	//cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_USERPTR > > ( "Video4LinuxFramegrabber" );
+
 	//cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_MMAP > > ( "Video4LinuxMmap" );
 	//cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_READ > > ( "Video4LinuxRead" );
 	//cf->registerComponent< Ubitrack::Drivers::Video4LinuxFramegrabber< IO_METHOD_USERPTR > > ( "Video4LinuxUserptr" );

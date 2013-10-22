@@ -75,6 +75,7 @@
 
 #include <utVision/Image.h>
 #include <utVision/Undistortion.h>
+#include <opencv/cv.h>
 
 
 // get a logger
@@ -222,13 +223,23 @@ protected:
 	//Measurement::TimestampSync m_syncer;
 
 	/** undistorter */
-	//boost::shared_ptr<Vision::Undistortion> m_undistorter;
+	boost::shared_ptr<Vision::Undistortion> m_undistorter;
 
 	/** color image output port*/
 	Dataflow::PushSupplier< Measurement::ImageMeasurement > m_outPort;
 
 	/** grayscale image output port*/
 	Dataflow::PushSupplier< Measurement::ImageMeasurement > m_colorOutPort;
+
+	/** intrinsics output port **/
+	Dataflow::PullSupplier< Measurement::Matrix3x3 > m_intrinsicsPort;
+
+	/** camera control parameters **/
+	int m_shutter;
+	int m_gain;
+	int m_brightness;
+	unsigned int m_auto_exp;
+
 public:
 
 	/** constructor */
@@ -242,6 +253,17 @@ public:
 
 	/** stops the camera */
 	void stop();
+
+
+
+	Measurement::Matrix3x3 getIntrinsic( Measurement::Timestamp t )
+	{
+		if (m_undistorter) {
+			return Measurement::Matrix3x3( t, m_undistorter->getIntrinsics() );
+		} else {
+			UBITRACK_THROW( "No undistortion configured for DC1394FrameGrabber" );
+		}
+	}
 
 protected:
 
@@ -270,7 +292,7 @@ protected:
 	void processImage( const Measurement::Timestamp, void* ptdImage, const std::size_t lengthImage );
 
 	/** prepares the image and sends it to the dataflow network. */
-	void handleFrame( const Measurement::Timestamp t, const Vision::Image& bufferImage );
+	void handleFrame( const Measurement::Timestamp t, boost::shared_ptr<Vision::Image>& pColorImage );
 
 	/** stops the capturing process. */
 	void stopCapture( const int fd );
@@ -298,15 +320,32 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	, m_height( 0 )
 	, m_counter( 0 )
 	, m_lastTime( 0 )
+	, m_shutter( -1 )
+	, m_gain( 0 )
+	, m_auto_exp( 100 )
+	, m_brightness( 200 )
 	//, m_syncer( 1.0 )
 	//, m_undistorter( *subgraph )
 	, m_outPort( "Output", *this )
 	, m_colorOutPort( "ColorOutput", *this )
+	, m_intrinsicsPort( "Intrinsics", *this, boost::bind( &Video4LinuxFramegrabber< MEM_TYPE >::getIntrinsic, this, _1 ) )
 {
 	// subgraph->m_DataflowAttributes.getAttributeData( "timeOffset", m_timeOffset );
 	// subgraph->m_DataflowAttributes.getAttributeData( "divisor", m_divisor );
 	subgraph->m_DataflowAttributes.getAttributeData( "width", m_desiredWidth );
 	subgraph->m_DataflowAttributes.getAttributeData( "height", m_desiredHeight );
+
+
+	subgraph->m_DataflowAttributes.getAttributeData( "Shutter", m_shutter );
+	subgraph->m_DataflowAttributes.getAttributeData( "AutoExp", m_auto_exp );
+	subgraph->m_DataflowAttributes.getAttributeData( "Brightness", m_brightness );
+	subgraph->m_DataflowAttributes.getAttributeData( "Gain", m_gain );
+
+
+	std::string intrinsicFile = subgraph->m_DataflowAttributes.getAttributeString( "intrinsicMatrixFile" );
+	std::string distortionFile = subgraph->m_DataflowAttributes.getAttributeString( "distortionFile" );
+
+	m_undistorter.reset(new Vision::Undistortion(intrinsicFile, distortionFile));
 
 	if( -1 != m_fd )
 	{
@@ -979,7 +1018,7 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 {	
 	boost::shared_ptr< Vision::Image > pImage ( new Vision::Image( m_width, m_height, 3, IPL_DEPTH_8U, IPL_ORIGIN_TL ) );
 
-	/// @todo change image copying/converiosn depending on pixel format
+	/// @todo change image copying/converiosn depending o n pixel format
 
 
 	switch( m_pixelFormat ) 
@@ -999,33 +1038,29 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 	}
 
 	/// @todo change image sending
-	m_outPort.send( Measurement::ImageMeasurement( t, pImage ) );
-	m_colorOutPort.send( Measurement::ImageMeasurement( t, pImage ) );
+	//m_outPort.send( Measurement::ImageMeasurement( t, pImage ) );
+	//m_colorOutPort.send( Measurement::ImageMeasurement( t, pImage ) );
+	handleFrame(t, pImage);
 }
 
 template< io_method MEM_TYPE >
-void Video4LinuxFramegrabber< MEM_TYPE >::handleFrame( const Measurement::Timestamp t, const Vision::Image& bufferImage )
+void Video4LinuxFramegrabber< MEM_TYPE >::handleFrame( const Measurement::Timestamp t, boost::shared_ptr<Vision::Image>& pColorImage )
 {
+
+	// simplified solution - ignores the possibility of capturing bw images directly ..
+	// needs to be extended, when v4l driver supports greyscale capturing.
+	pColorImage = m_undistorter->undistort( pColorImage );
 	if ( m_colorOutPort.isConnected() )
 	{
-		// memcpy( pColorImage->channelSeq, "BGR", 4 );		
-		// m_colorOutPort.send( Measurement::ImageMeasurement( utTime, pColorImage ) );
+		// memcpy( pColorImage->channelSeq, "BGR", 4 );
+		m_colorOutPort.send( Measurement::ImageMeasurement( t, pColorImage ) );
 	}
 
 	if ( m_outPort.isConnected() )
 	{
-	/*
 		boost::shared_ptr< Vision::Image > pGreyImage;
-		if ( pColorImage )
-			pGreyImage = pColorImage->CvtColor( CV_BGR2GRAY, 1 );
-		else
-			pGreyImage = bufferImage.CvtColor( CV_BGR2GRAY, 1 );
-		
-		if ( bColorImageDistorted )
-			pGreyImage = m_undistorter->undistort( pGreyImage );
-		
-		m_outPort.send( Measurement::ImageMeasurement( utTime, pGreyImage ) );
-	*/
+		pGreyImage = pColorImage->CvtColor( CV_BGR2GRAY, 1 );
+		m_outPort.send( Measurement::ImageMeasurement( t, pGreyImage ) );
 	}
 }
 

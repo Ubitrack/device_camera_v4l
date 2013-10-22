@@ -1,4 +1,4 @@
-i# Video4Linux v2 Library include paths and libraries
+# Video4Linux v2 Library include paths and libraries
 #
 # Based on CMake script for:
 # Locate Intel Threading Building Blocks include paths and libraries
@@ -65,7 +65,7 @@ if (NOT _V4L2_INSTALL_DIR)
 	endif (NOT "$ENV{V4L2_INSTALL_DIR}" STREQUAL "")
 	if (NOT "$ENV{V4L_INSTALL_DIR}" STREQUAL "")
 		set (_V4L2_INSTALL_DIR $ENV{V4L_INSTALL_DIR})
-	endif (NOT "$ENV{TBB21_INSTALL_DIR}" STREQUAL "")
+	endif (NOT "$ENV{V4L_INSTALL_DIR}" STREQUAL "")
 endif (NOT _V4L2_INSTALL_DIR)
 
 # third: try to find path automatically

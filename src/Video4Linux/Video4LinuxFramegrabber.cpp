@@ -104,6 +104,48 @@ static int xioctl( int fh, int request, void *arg )
 	return r;
 }
 
+bool set_camera_parameter( int fd, unsigned int ctrl_type, int ctrl_value, std::string name ){
+	// set controls
+	struct v4l2_queryctrl query;
+	struct v4l2_control control;
+
+    memset(&query,0,sizeof(v4l2_queryctrl));        //zero out the structures
+    memset(&control,0,sizeof(control));
+
+    query.id = ctrl_type;                       //Query exposure
+	if(ioctl(fd, VIDIOC_QUERYCTRL, &query) == -1)
+	{
+		// error querying property
+		LOG4CPP_ERROR( logger, "Error setting V4L camera control: "  << name << " parameter not found.");
+	}
+	else if(query.flags & V4L2_CTRL_FLAG_DISABLED)
+	{
+		// disabled
+		LOG4CPP_WARN( logger, "Error setting V4L camera control: "  << name << " parameter disabled.");
+	}
+	else
+	{
+		if (ctrl_value != query.default_value) {
+			if ((ctrl_value <= query.maximum) && (ctrl_value >= query.minimum)) {
+				control.id = ctrl_type;
+				control.value = ctrl_value;
+				if(ioctl(fd, VIDIOC_S_CTRL, &control) == -1) {
+					// error setting
+					LOG4CPP_WARN( logger, "Set V4L camera control: "  << name << " to value: " << ctrl_value << " FAILED!");
+				} else {
+					LOG4CPP_INFO( logger, "Set V4L camera control: "  << name << " to value: " << ctrl_value);
+					return true;
+				}
+			} else {
+				// not within bounds
+				LOG4CPP_WARN( logger, "Error setting V4L camera control: "  << name << " not within bounds: " << ctrl_value << " (" << query.minimum << "-" << query.maximum << ")");
+			}
+		}
+	}
+	return false;
+}
+
+
 template< typename T >
 inline void CLEAR( T value )
 {
@@ -238,7 +280,6 @@ protected:
 	int m_shutter;
 	int m_gain;
 	int m_brightness;
-	unsigned int m_auto_exp;
 
 public:
 
@@ -322,7 +363,6 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	, m_lastTime( 0 )
 	, m_shutter( -1 )
 	, m_gain( 0 )
-	, m_auto_exp( 100 )
 	, m_brightness( 200 )
 	//, m_syncer( 1.0 )
 	//, m_undistorter( *subgraph )
@@ -337,7 +377,6 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 
 
 	subgraph->m_DataflowAttributes.getAttributeData( "Shutter", m_shutter );
-	subgraph->m_DataflowAttributes.getAttributeData( "AutoExp", m_auto_exp );
 	subgraph->m_DataflowAttributes.getAttributeData( "Brightness", m_brightness );
 	subgraph->m_DataflowAttributes.getAttributeData( "Gain", m_gain );
 
@@ -638,6 +677,36 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 	min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;
 	if( fmt.fmt.pix.sizeimage < min )
 		fmt.fmt.pix.sizeimage = min;
+
+	// camera parameters
+	bool ctrl_ok = false;
+	if (m_brightness != 0) {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_BRIGHTNESS, m_brightness, "Brightness" );
+	}
+
+	if (m_shutter < 0) {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_AUTO, "ExposureAuto" );
+	} else {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL, "ExposureAuto" );
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_ABSOLUTE, m_shutter, "Exposure" );
+	}
+
+	if (m_gain < 0) {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_AUTOGAIN, true, "GainAuto" );
+	} else {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_AUTOGAIN, false, "GainAuto" );
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_ABSOLUTE, m_gain, "Gain" );
+	}
+
+	// more ctrls like:
+	// V4L2_CID_CONTRAST
+	// V4L2_CID_SATURATION
+	// V4L2_CID_HUE
+	// V4L2_CID_AUTO_WHITE_BALANCE
+	// V4L2_CID_GAMMA
+	// V4L2_CID_WHITE_BALANCE_TEMPERATURE
+	//
+
 
 	return fmt.fmt.pix.sizeimage;
 }

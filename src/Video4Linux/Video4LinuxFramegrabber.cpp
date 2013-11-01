@@ -138,8 +138,10 @@ bool set_camera_parameter( int fd, unsigned int ctrl_type, int ctrl_value, std::
 				}
 			} else {
 				// not within bounds
-				LOG4CPP_WARN( logger, "Error setting V4L camera control: "  << name << " not within bounds: " << ctrl_value << " (" << query.minimum << "-" << query.maximum << ")");
+				LOG4CPP_WARN( logger, "Error setting V4L camera control: "  << name << " not within bounds: " << ctrl_value << " (" << query.minimum << " - " << query.maximum << ")");
 			}
+		} else {
+			return true;
 		}
 	}
 	return false;
@@ -367,7 +369,7 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	, m_lastTime( 0 )
 	, m_shutter( -1 )
 	, m_gain( 0 )
-	, m_brightness( 200 )
+	, m_brightness( 1 )
 	//, m_syncer( 1.0 )
 	//, m_undistorter( *subgraph )
 	, m_outPort( "Output", *this )
@@ -685,22 +687,28 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 
 	// camera parameters
 	bool ctrl_ok = false;
+	if (m_shutter > 0) {
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL, "ExposureAuto" );
+		if (!ctrl_ok)
+			LOG4CPP_WARN( logger, "Error setting exposure to manual")
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_ABSOLUTE, m_shutter, "Exposure" );
+		if (!ctrl_ok)
+			LOG4CPP_WARN( logger, "Error setting exposure to: " << m_shutter)
+	}
+
 	if (m_brightness != 0) {
 		ctrl_ok = set_camera_parameter(fd, V4L2_CID_BRIGHTNESS, m_brightness, "Brightness" );
+		if (!ctrl_ok)
+			LOG4CPP_WARN( logger, "Error setting brightness to: " << m_brightness)
 	}
 
-	if (m_shutter < 0) {
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_AUTO, "ExposureAuto" );
-	} else {
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL, "ExposureAuto" );
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_ABSOLUTE, m_shutter, "Exposure" );
-	}
-
-	if (m_gain < 0) {
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_AUTOGAIN, true, "GainAuto" );
-	} else {
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_AUTOGAIN, false, "GainAuto" );
-		ctrl_ok = set_camera_parameter(fd, V4L2_CID_EXPOSURE_ABSOLUTE, m_gain, "Gain" );
+	if (m_gain >= 0) {
+//		ctrl_ok = set_camera_parameter(fd, V4L2_CID_AUTOGAIN, false, "GainAuto" );
+//		if (!ctrl_ok)
+//			LOG4CPP_WARN( logger, "Error setting gain to manual")
+		ctrl_ok = set_camera_parameter(fd, V4L2_CID_GAIN, m_gain, "Gain" );
+		if (!ctrl_ok)
+			LOG4CPP_WARN( logger, "Error setting gain to: " << m_gain)
 	}
 
 	// more ctrls like:

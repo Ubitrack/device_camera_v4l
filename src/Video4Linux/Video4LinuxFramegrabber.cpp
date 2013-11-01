@@ -246,6 +246,9 @@ protected:
 	/** desired image height */
 	std::size_t m_desiredHeight;
 
+	/** desired frame rate */
+	std::size_t m_desiredFrameRate;
+
 	/** output image width */
 	std::size_t m_width;
 
@@ -357,6 +360,7 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	, m_divisor( 1 )
 	, m_desiredWidth( 640 )
 	, m_desiredHeight( 480 )
+	, m_desiredFrameRate( 30 )
 	, m_width( 0 )
 	, m_height( 0 )
 	, m_counter( 0 )
@@ -375,10 +379,11 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	subgraph->m_DataflowAttributes.getAttributeData( "width", m_desiredWidth );
 	subgraph->m_DataflowAttributes.getAttributeData( "height", m_desiredHeight );
 
+	subgraph->m_DataflowAttributes.getAttributeData( "frameRate", m_desiredFrameRate );
 
-	subgraph->m_DataflowAttributes.getAttributeData( "Shutter", m_shutter );
-	subgraph->m_DataflowAttributes.getAttributeData( "Brightness", m_brightness );
-	subgraph->m_DataflowAttributes.getAttributeData( "Gain", m_gain );
+	subgraph->m_DataflowAttributes.getAttributeData( "shutter", m_shutter );
+	subgraph->m_DataflowAttributes.getAttributeData( "brightness", m_brightness );
+	subgraph->m_DataflowAttributes.getAttributeData( "gain", m_gain );
 
 
 	std::string intrinsicFile = subgraph->m_DataflowAttributes.getAttributeString( "intrinsicMatrixFile" );
@@ -655,7 +660,7 @@ int Video4LinuxFramegrabber< MEM_TYPE >::initDevice( const int fd, const char* d
 	CLEAR( setfps );
 	setfps.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	setfps.parm.capture.timeperframe.numerator = 1;
-	setfps.parm.capture.timeperframe.denominator = 30;
+	setfps.parm.capture.timeperframe.denominator = m_desiredFrameRate;
 	if( -1 == xioctl ( fd , VIDIOC_S_PARM, &setfps) )
 	{
 		LOG4CPP_ERROR( logger, "Could not set the framerate to " << setfps.parm.capture.timeperframe.numerator << "/" << setfps.parm.capture.timeperframe.denominator << ", error: \"" << strerror( errno ) << "\"." )

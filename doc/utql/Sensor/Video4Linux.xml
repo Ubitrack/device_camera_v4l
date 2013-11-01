@@ -62,18 +62,18 @@
 					<h:p>string that identifies the capture device in linux. Usually this is of type /dev/video0 .</h:p>
 				</Description>
 			</Attribute>
-            <Attribute name="Shutter" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="Shutter time">
+            <Attribute name="shutter" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="Shutter time">
                 <Description>
                     <h:p>Desired shutter time or -1 for automatic shutter. This value does not have a direct relation to time in [s]. Note that this is only a recommendation and the actual
                     size will depend on the capabilities of the camera driver. For automatic shutter, adjust the <h:code>Auto exposure</h:code> attribute properly</h:p>
                 </Description>
             </Attribute>
-            <Attribute name="Brightness" min="-100" default="100" xsi:type="IntAttributeDeclarationType" displayName="Brightness">
+            <Attribute name="brightness" min="-100" default="100" xsi:type="IntAttributeDeclarationType" displayName="Brightness">
                 <Description>
                     <h:p>sets the Brightness control value for the camera.</h:p>
                 </Description>
             </Attribute>
-            <Attribute name="Gain" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="CCD gain">
+            <Attribute name="gain" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="CCD gain">
                 <Description>
                     <h:p>CCD gain, should be set to 0 under good lighting conditions for maximum image quality. -1 enables automatic gain control. Note that this is only a recommendation and the actual
                     size will depend on the capabilities of the camera driver. </h:p>
@@ -145,23 +145,29 @@
 					size will depend on the capabilities of the camera driver. </h:p>
 				</Description>
 			</Attribute>
+			<Attribute name="frameRate" min="1" default="30" xsi:type="IntAttributeDeclarationType" displayName="frame rate">
+				<Description>
+					<h:p>Desired frame rate in 1/n s. Note that this is only a recommendation and the actual
+					frame rate will depend on the capabilities of the camera driver. </h:p>
+				</Description>
+			</Attribute>
 			<Attribute name="cameraName" default="" xsi:type="StringAttributeDeclarationType" displayName="camera name">
 				<Description>
 					<h:p>string that identifies the capture device in linux. Usually this is of type /dev/video0 .</h:p>
 				</Description>
 			</Attribute>
-            <Attribute name="Shutter" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="Shutter time">
+            <Attribute name="shutter" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="Shutter time">
                 <Description>
                     <h:p>Desired shutter time or -1 for automatic shutter. This value does not have a direct relation to time in [s]. Note that this is only a recommendation and the actual
                     size will depend on the capabilities of the camera driver. For automatic shutter, adjust the <h:code>Auto exposure</h:code> attribute properly</h:p>
                 </Description>
             </Attribute>
-            <Attribute name="Brightness" min="-100" default="100" xsi:type="IntAttributeDeclarationType" displayName="Brightness">
+            <Attribute name="brightness" min="-100" default="100" xsi:type="IntAttributeDeclarationType" displayName="Brightness">
                 <Description>
                     <h:p>sets the Brightness control value for the camera.</h:p>
                 </Description>
             </Attribute>
-            <Attribute name="Gain" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="CCD gain">
+            <Attribute name="gain" min="-1" default="-1" xsi:type="IntAttributeDeclarationType" displayName="CCD gain">
                 <Description>
                     <h:p>CCD gain, should be set to 0 under good lighting conditions for maximum image quality. -1 enables automatic gain control. Note that this is only a recommendation and the actual
                     size will depend on the capabilities of the camera driver. </h:p>

@@ -15,6 +15,13 @@
 		<Output>
 			<Node name="Camera" displayName="Camera" />
 			<Node name="ImagePlane" displayName="Image Plane" />
+            <Edge name="Intrinsics" source="Camera"	destination="ImagePlane" displayName="Camera Intrinsics">
+                <Description>
+                    <h:p>The intrinsic camera matrix.</h:p>
+                </Description>
+                <Attribute name="type" value="3x3Matrix" xsi:type="EnumAttributeReferenceType"/>
+                <Attribute name="mode" value="pull" xsi:type="EnumAttributeReferenceType"/>
+            </Edge>
 			<Edge name="Output" source="Camera" destination="ImagePlane" displayName="Greyscale Image">
 				<Description>
 					<h:p>The camera image (greyscale).</h:p>

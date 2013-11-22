@@ -57,6 +57,12 @@
 					size will depend on the capabilities of the camera driver. </h:p>
 				</Description>
 			</Attribute>
+			<Attribute name="frameRate" min="1" default="30" xsi:type="IntAttributeDeclarationType" displayName="frame rate">
+				<Description>
+					<h:p>Desired frame rate in 1/n s. Note that this is only a recommendation and the actual
+					frame rate will depend on the capabilities of the camera driver. </h:p>
+				</Description>
+			</Attribute>
 			<Attribute name="cameraName" default="" xsi:type="StringAttributeDeclarationType" displayName="camera name">
 				<Description>
 					<h:p>string that identifies the capture device in linux. Usually this is of type /dev/video0 .</h:p>

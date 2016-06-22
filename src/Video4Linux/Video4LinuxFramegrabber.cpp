@@ -263,6 +263,9 @@ protected:
 	/** timestamp of last frame */
 	Measurement::Timestamp m_lastTime;
 
+	/** automatic upload of images to the GPU*/
+	bool m_autoGPUUpload;
+
 	// the thread
 	boost::scoped_ptr< boost::thread > m_Thread;
 
@@ -305,7 +308,7 @@ public:
 	Measurement::Matrix3x3 getIntrinsic( Measurement::Timestamp t )
 	{
 		if (m_undistorter) {
-			return Measurement::Matrix3x3( t, m_undistorter->getIntrinsics() );
+			return Measurement::Matrix3x3( t, m_undistorter->getMatrix() );
 		} else {
 			UBITRACK_THROW( "No undistortion configured for DC1394FrameGrabber" );
 		}
@@ -370,6 +373,7 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	, m_shutter( -1 )
 	, m_gain( 0 )
 	, m_brightness( 1 )
+	, m_autoGPUUpload(false)
 	//, m_syncer( 1.0 )
 	//, m_undistorter( *subgraph )
 	, m_outPort( "Output", *this )
@@ -1106,13 +1110,13 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 	switch( m_pixelFormat ) 
 	{
 		case V4L2_PIX_FMT_BGR24:
-			convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
 			break;
 		case V4L2_PIX_FMT_YUV420 :
-			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
 			break;
 		case V4L2_PIX_FMT_YUYV :
-			convert< V4L2_PIX_FMT_YUYV , V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->imageData ) );
+			convert< V4L2_PIX_FMT_YUYV , V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
 			break;
 		default:
 			break;
@@ -1132,6 +1136,10 @@ void Video4LinuxFramegrabber< MEM_TYPE >::handleFrame( const Measurement::Timest
 	// simplified solution - ignores the possibility of capturing bw images directly ..
 	// needs to be extended, when v4l driver supports greyscale capturing.
 	pColorImage = m_undistorter->undistort( pColorImage );
+	if (m_autoGPUUpload){
+		//force upload to the GPU
+		pColorImage->uMat();
+	}		
 	if ( m_colorOutPort.isConnected() )
 	{
 		// memcpy( pColorImage->channelSeq, "BGR", 4 );

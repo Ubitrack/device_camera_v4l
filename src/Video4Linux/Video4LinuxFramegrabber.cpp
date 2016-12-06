@@ -1110,13 +1110,13 @@ void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Times
 	switch( m_pixelFormat ) 
 	{
 		case V4L2_PIX_FMT_BGR24:
-			convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
+			convert< V4L2_PIX_FMT_BGR24, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->Mat().data ) );
 			break;
 		case V4L2_PIX_FMT_YUV420 :
-			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
+			convert< V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->Mat().data ) );
 			break;
 		case V4L2_PIX_FMT_YUYV :
-			convert< V4L2_PIX_FMT_YUYV , V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->iplImage()->imageData ) );
+			convert< V4L2_PIX_FMT_YUYV , V4L2_PIX_FMT_BGR24 >( m_width, m_height, reinterpret_cast< uint8_t* > ( ptdImage ), reinterpret_cast< uint8_t* > ( pImage->Mat().data ) );
 			break;
 		default:
 			break;

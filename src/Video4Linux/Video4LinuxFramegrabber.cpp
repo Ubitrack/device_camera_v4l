@@ -76,7 +76,7 @@
 #include <utVision/Image.h>
 #include <utVision/Undistortion.h>
 #include <opencv/cv.h>
-
+#include <utVision/OpenCLManager.h>
 
 // get a logger
 #include <log4cpp/Category.hh>
@@ -396,6 +396,19 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	std::string distortionFile = subgraph->m_DataflowAttributes.getAttributeString( "distortionFile" );
 
 	m_undistorter.reset(new Vision::Undistortion(intrinsicFile, distortionFile));
+
+	Vision::OpenCLManager& oclManager = Vision::OpenCLManager::singleton();
+	if (oclManager.isEnabled()) {
+		if (subgraph->m_DataflowAttributes.hasAttribute("uploadImageOnGPU")){
+			m_autoGPUUpload = subgraph->m_DataflowAttributes.getAttributeString("uploadImageOnGPU") == "true";
+			LOG4CPP_INFO(logger, "Upload to GPU enabled? " << m_autoGPUUpload);
+		}
+		if (m_autoGPUUpload){
+			oclManager.activate();
+			LOG4CPP_INFO(logger, "Require OpenCLManager");
+		}
+	}
+
 
 	if( -1 != m_fd )
 	{

@@ -1,15 +1,20 @@
-set(the_description "The UbiTrack Video4Linux Camera Component")
-ut_add_component(video4linux DEPS utcore utdataflow utvision)
+project(ubitrack_device_camera_v4l)
+
+cmake_minimum_required(VERSION 3.4.0)
+
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(TARGETS)
+
+include(GNUInstallDirs)
+include(cmake/UbitrackConfig)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
-# ALSO NEEDS OPENCV FOR IMAGE CLASS !!!
-FIND_PACKAGE(V4L2)
-IF(V4L2_FOUND)
-	SET(HAVE_V4L2 1)
-	add_definitions(-DHAVE_V4L2)
-	ut_component_include_directories(${TINYXML_INCLUDE_DIR} ${LOG4CPP_INCLUDE_DIR} ${BOOSTBINDINGS_INCLUDE_DIR} ${LAPACK_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ${V4L2_INCLUDE_DIRS})
-	ut_glob_component_sources(HEADERS "src/Video4Linux/*.h" SOURCES "src/Video4Linux/*.cpp")
-	ut_create_multi_component(${V4L2_LIBRARIES})
-	ut_install_utql_patterns()
-ENDIF(V4L2_FOUND)
+FIND_PACKAGE(V4L2 REQUIRED)
+set(UBITRACK_COMPILE_DEFINITIONS ${UBITRACK_COMPILE_DEFINITIONS} "HAVE_V4L2")
+
+
+add_subdirectory(src/Video4Linux)
+
+ubitrack_install_utql("doc/utql/*.xml" "doc/utql/*/*.xml"  "doc/utql/*/*/*.xml")
+ubitrack_install_doc("doc/utqlDoc/*" "doc/utqlDoc/*/*" "doc/utqlDoc/*/*/*")
 

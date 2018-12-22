@@ -1,3 +1,5 @@
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake" )
+
 project(ubitrack_device_camera_v4l)
 
 cmake_minimum_required(VERSION 3.4.0)
@@ -8,7 +10,6 @@ conan_basic_setup(TARGETS)
 include(GNUInstallDirs)
 include(cmake/UbitrackConfig)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
 FIND_PACKAGE(V4L2 REQUIRED)
 set(UBITRACK_COMPILE_DEFINITIONS ${UBITRACK_COMPILE_DEFINITIONS} "HAVE_V4L2")
 

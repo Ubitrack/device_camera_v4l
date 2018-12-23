@@ -281,8 +281,11 @@ protected:
 	/** grayscale image output port*/
 	Dataflow::PushSupplier< Measurement::ImageMeasurement > m_colorOutPort;
 
-	/** intrinsics output port **/
+	/** intrinsics matrix output port **/
 	Dataflow::PullSupplier< Measurement::Matrix3x3 > m_intrinsicsPort;
+
+	/** cameraintrinsics output port **/
+    Dataflow::PullSupplier< Measurement::CameraIntrinsics > m_cameraModelPort;
 
 	/** camera control parameters **/
 	int m_shutter;
@@ -305,14 +308,26 @@ public:
 
 
 
+	/** handler method for incoming pull requests */
+
 	Measurement::Matrix3x3 getIntrinsic( Measurement::Timestamp t )
 	{
 		if (m_undistorter) {
 			return Measurement::Matrix3x3( t, m_undistorter->getMatrix() );
 		} else {
-			UBITRACK_THROW( "No undistortion configured for DC1394FrameGrabber" );
+			UBITRACK_THROW( "No undistortion configured for V4L2FrameGrabber" );
 		}
 	}
+
+    Measurement::CameraIntrinsics getCameraModel( Measurement::Timestamp t )
+    {
+        if (m_undistorter) {
+            return Measurement::CameraIntrinsics( t, m_undistorter->getIntrinsics() );
+        } else {
+            UBITRACK_THROW( "No undistortion configured for V4L2FrameGrabber" );
+        }
+    }
+
 
 protected:
 
@@ -378,7 +393,8 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	//, m_undistorter( *subgraph )
 	, m_outPort( "Output", *this )
 	, m_colorOutPort( "ColorOutput", *this )
-	, m_intrinsicsPort( "Intrinsics", *this, boost::bind( &Video4LinuxFramegrabber< MEM_TYPE >::getIntrinsic, this, _1 ) )
+	, m_intrinsicsPort( "Intrinsics", *this, boost::bind( &Video4LinuxFramegrabber::getIntrinsic, this, _1 ) )
+    , m_cameraModelPort( "CameraModel", *this, boost::bind( &Video4LinuxFramegrabber::getCameraModel, this, _1 ) )
 {
 	// subgraph->m_DataflowAttributes.getAttributeData( "timeOffset", m_timeOffset );
 	// subgraph->m_DataflowAttributes.getAttributeData( "divisor", m_divisor );
@@ -392,10 +408,17 @@ Video4LinuxFramegrabber< MEM_TYPE >::Video4LinuxFramegrabber( const std::string&
 	subgraph->m_DataflowAttributes.getAttributeData( "gain", m_gain );
 
 
-	std::string intrinsicFile = subgraph->m_DataflowAttributes.getAttributeString( "intrinsicMatrixFile" );
-	std::string distortionFile = subgraph->m_DataflowAttributes.getAttributeString( "distortionFile" );
+	if (subgraph->m_DataflowAttributes.hasAttribute("cameraModelFile")){
+		std::string cameraModelFile = subgraph->m_DataflowAttributes.getAttributeString("cameraModelFile");
+		m_undistorter.reset(new Vision::Undistortion(cameraModelFile));
+	}
+	else {
+		std::string intrinsicFile = subgraph->m_DataflowAttributes.getAttributeString("intrinsicMatrixFile");
+		std::string distortionFile = subgraph->m_DataflowAttributes.getAttributeString("distortionFile");
 
-	m_undistorter.reset(new Vision::Undistortion(intrinsicFile, distortionFile));
+
+		m_undistorter.reset(new Vision::Undistortion(intrinsicFile, distortionFile));
+	}
 
 	Vision::OpenCLManager& oclManager = Vision::OpenCLManager::singleton();
 	if (oclManager.isEnabled()) {
@@ -1115,7 +1138,15 @@ int Video4LinuxFramegrabber< IO_METHOD_USERPTR >::readFrame( const int fd )
 template< io_method MEM_TYPE >
 void Video4LinuxFramegrabber< MEM_TYPE >::processImage( const Measurement::Timestamp t, void* ptdImage, const std::size_t lengthImage )
 {	
-	boost::shared_ptr< Vision::Image > pImage ( new Vision::Image( m_width, m_height, 3, IPL_DEPTH_8U, IPL_ORIGIN_TL ) );
+
+	Vision::Image::ImageFormatProperties fmt;
+			fmt.imageFormat = Vision::Image::BGR;
+			fmt.channels = 3;
+			fmt.depth = CV_8U;
+			fmt.bitsPerPixel = 24;
+			fmt.origin = 0;
+
+	boost::shared_ptr< Vision::Image > pImage ( new Vision::Image( m_width, m_height, fmt ) );
 
 	/// @todo change image copying/converiosn depending o n pixel format
 
@@ -1149,10 +1180,16 @@ void Video4LinuxFramegrabber< MEM_TYPE >::handleFrame( const Measurement::Timest
 	// simplified solution - ignores the possibility of capturing bw images directly ..
 	// needs to be extended, when v4l driver supports greyscale capturing.
 	pColorImage = m_undistorter->undistort( pColorImage );
+
+
 	if (m_autoGPUUpload){
-		//force upload to the GPU
-		pColorImage->uMat();
-	}		
+		Vision::OpenCLManager& oclManager = Vision::OpenCLManager::singleton();
+		if (oclManager.isInitialized()) {
+			//force upload to the GPU
+			pColorImage->uMat();
+		}
+	}
+
 	if ( m_colorOutPort.isConnected() )
 	{
 		// memcpy( pColorImage->channelSeq, "BGR", 4 );
